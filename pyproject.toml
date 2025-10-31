@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=74.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-cubing"
+version = "0.1.0"
+description = "MCP server for Rubik's cube manipulation and visualization"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.1.0",
+    "cubing-algs>=1.0.0",
+]
+keywords = ["mcp", "rubick", "cube", "speedcubing", "solve", "algorithm"]
+authors = [{name = "Fantomas42", email = "fantomas42@gmail.com"}]
+classifiers = [
+  "Programming Language :: Python"
+]
+
+[project.urls]
+repository = "https://github.com/Fantomas42/mcp-cubing"
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+    "pytest-subtests",
+]
+
+[tool.ruff]
+line-length = 80
+indent-width = 4
+target-version = "py312"
+show-fixes = true
