@@ -35,3 +35,10 @@ line-length = 80
 indent-width = 4
 target-version = "py312"
 show-fixes = true
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "single"
+
+[tool.ruff.lint.isort]
+force-single-line = true
