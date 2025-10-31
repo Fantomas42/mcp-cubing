@@ -9,7 +9,10 @@ import json
 from typing import Any
 
 from mcp.server import Server
-from mcp.types import Tool, TextContent, ImageContent, EmbeddedResource
+from mcp.types import EmbeddedResource
+from mcp.types import ImageContent
+from mcp.types import TextContent
+from mcp.types import Tool
 
 from cubing_algs import Algorithm, VCube
 from cubing_algs.scrambler import scramble

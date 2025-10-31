@@ -7,7 +7,7 @@ import asyncio
 # Test imports
 try:
     from mcp_cubing.server import app, get_cube, reset_cube
-    from cubing_algs import Algorithm, VCube
+    from cubing_algs import Algorithm
     print("✓ All imports successful")
 except ImportError as e:
     print(f"✗ Import error: {e}")
@@ -24,7 +24,7 @@ async def test_basic():
 
     # Test move application
     cube.rotate("R U R' U'")
-    print(f"✓ Applied sexy move")
+    print("✓ Applied sexy move")
     print(f"✓ Is solved: {cube.is_solved}")
 
     # Test algorithm parsing
