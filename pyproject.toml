@@ -30,6 +30,25 @@ dev = [
     "pytest-subtests",
 ]
 
+[tool.ruff.lint]
+preview = true
+fixable = ["ALL"]
+select = ["ALL"]
+ignore = [
+    "CPY001",
+    "D203",
+    "D205",
+    "D212",
+]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = false
+docstring-code-line-length = "dynamic"
+
 [tool.ruff]
 line-length = 80
 indent-width = 4
