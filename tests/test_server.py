@@ -294,6 +294,8 @@ class TestHandleAnalyzeAlgorithm(unittest.TestCase):
         self.assertIn('algorithm', data)
 
     def test_analyze_algorithm_has_metrics(self) -> None:
+        breakpoint()
+
         result = server.handle_analyze_algorithm({'algorithm': "R U R' U'"})
         data = json.loads(result[0].text)
         self.assertIn('metrics', data)
@@ -304,6 +306,11 @@ class TestHandleAnalyzeAlgorithm(unittest.TestCase):
         self.assertIn('etm', metrics)
         self.assertIn('rtm', metrics)
         self.assertIn('qstm', metrics)
+        self.assertIn('obtm', metrics)
+        self.assertIn('obqtm', metrics)
+        self.assertIn('rbtm', metrics)
+        self.assertIn('btm', metrics)
+        self.assertIn('bqtm', metrics)
         self.assertIn('pauses', metrics)
         self.assertIn('rotations', metrics)
         self.assertIn('outer_moves', metrics)
