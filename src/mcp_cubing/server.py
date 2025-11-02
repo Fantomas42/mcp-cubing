@@ -184,7 +184,8 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
         Tool(
             name='analyze_algorithm',
             description=(
-                'Comprehensive algorithm analysis: metrics (HTM/QTM/STM/ETM/RTM), '
+                'Comprehensive algorithm analysis: '
+                'metrics (HTM/QTM/STM/ETM/RTM), '
                 'ergonomics (comfort, execution time, finger usage), '
                 'structure (conjugates, commutators, efficiency), '
                 'impacts (pieces affected, patterns, complexity).'
@@ -220,8 +221,9 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
         Tool(
             name='simplify_algorithm',
             description=(
-                'Optimize and simplify an algorithm by removing redundant moves, '
-                'combining sequences (R R -> R2), and canceling inverses.'
+                'Optimize and simplify an algorithm by '
+                'removing redundant moves, combining sequences (R R -> R2), '
+                'and canceling inverses.'
             ),
             inputSchema={
                 'type': 'object',
@@ -386,7 +388,7 @@ def handle_scramble_cube(arguments: dict[str, Any]) -> list[TextContent]:
     cube = get_cube()
     length = arguments.get('length', 20)
 
-    scramble_alg = scramble(length)
+    scramble_alg = scramble(3, length)
     cube.rotate(scramble_alg)
 
     return [

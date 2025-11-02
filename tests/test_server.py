@@ -6,7 +6,6 @@ import json
 import unittest
 
 from cubing_algs import VCube
-from cubing_algs.exceptions import InvalidMoveError
 from mcp.types import TextContent
 
 from mcp_cubing import server
@@ -194,14 +193,9 @@ class TestHandleScrambleCube(unittest.TestCase):
         server._cube_state = None
 
     def test_scramble_cube_returns_text_content(self) -> None:
-        # Scramble can occasionally generate invalid moves (cubing-algs issue)
-        # Skip test if scramble fails (not our bug)
-        try:
-            result = server.handle_scramble_cube({})
-            self.assertIsInstance(result, list)
-            self.assertIn('Applied scramble:', result[0].text)
-        except InvalidMoveError:
-            self.skipTest('Scramble generated invalid move (cubing-algs issue)')
+        result = server.handle_scramble_cube({})
+        self.assertIsInstance(result, list)
+        self.assertIn('Applied scramble:', result[0].text)
 
 
 class TestHandleIsSolved(unittest.TestCase):
