@@ -21,7 +21,13 @@ _cube_state: VCube | None = None
 
 
 def get_cube() -> VCube:
-    """Get or initialize the global cube state."""
+    """
+    Get or initialize the global cube state.
+
+    Returns:
+        VCube: The global cube instance.
+
+    """
     global _cube_state  # noqa: PLW0603
 
     if _cube_state is None:
@@ -30,7 +36,13 @@ def get_cube() -> VCube:
 
 
 def reset_cube() -> VCube:
-    """Reset the cube to solved state."""
+    """
+    Reset the cube to solved state.
+
+    Returns:
+        VCube: The newly reset cube instance.
+
+    """
     global _cube_state  # noqa: PLW0603
 
     _cube_state = VCube()
@@ -43,7 +55,13 @@ app = Server('mcp-cubing')
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:  # noqa: RUF029
-    """List available cube manipulation tools."""
+    """
+    List available cube manipulation tools.
+
+    Returns:
+        list[Tool]: The list of available MCP tools.
+
+    """
     return [
         Tool(
             name='apply_moves',
@@ -232,8 +250,21 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
 
 
 @app.call_tool()
-async def call_tool(name: str, arguments: Any) -> list[TextContent]:  # noqa: RUF029
-    """Handle tool calls."""
+async def call_tool(  # noqa: RUF029, PLR0911, C901, PLR0915, PLR0914
+    name: str,
+    arguments: dict[str, Any],
+) -> list[TextContent]:
+    """
+    Handle tool calls.
+
+    Args:
+        name: The name of the tool to call.
+        arguments: The arguments for the tool.
+
+    Returns:
+        list[TextContent]: The result of the tool call.
+
+    """
     if name == 'apply_moves':
         cube = get_cube()
         moves = arguments['moves']
