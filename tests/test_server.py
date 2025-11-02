@@ -197,6 +197,101 @@ class TestHandleScrambleCube(unittest.TestCase):
         self.assertIsInstance(result, list)
         self.assertIn('Applied scramble:', result[0].text)
 
+    def test_scramble_cube_default_3x3x3(self) -> None:
+        server.reset_cube()
+        result = server.handle_scramble_cube({})
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIn('Applied scramble:', result[0].text)
+        cube = server.get_cube()
+        self.assertFalse(cube.is_solved)
+
+    def test_scramble_cube_with_custom_iterations(self) -> None:
+        server.reset_cube()
+        result = server.handle_scramble_cube({'cube_size': 3, 'iterations': 10})
+        self.assertIn('Applied scramble:', result[0].text)
+        cube = server.get_cube()
+        self.assertFalse(cube.is_solved)
+
+    def test_scramble_cube_with_inner_layers(self) -> None:
+        server.reset_cube()
+        result = server.handle_scramble_cube({
+            'cube_size': 3,
+            'iterations': 15,
+            'inner_layers': True,
+        })
+        self.assertIn('Applied scramble:', result[0].text)
+        cube = server.get_cube()
+        self.assertFalse(cube.is_solved)
+
+    def test_scramble_cube_with_right_handed_false(self) -> None:
+        server.reset_cube()
+        result = server.handle_scramble_cube({
+            'cube_size': 3,
+            'iterations': 12,
+            'right_handed': False,
+        })
+        self.assertIn('Applied scramble:', result[0].text)
+        cube = server.get_cube()
+        self.assertFalse(cube.is_solved)
+
+    def test_scramble_cube_4x4x4_not_applied(self) -> None:
+        server.reset_cube()
+        result = server.handle_scramble_cube({'cube_size': 4, 'iterations': 20})
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertIn('Generated 4x4x4 scramble:', result[0].text)
+        self.assertIn('VCube only supports 3x3x3', result[0].text)
+        cube = server.get_cube()
+        self.assertTrue(cube.is_solved)
+
+    def test_scramble_cube_5x5x5_with_inner_layers_not_applied(self) -> None:
+        server.reset_cube()
+        result = server.handle_scramble_cube({
+            'cube_size': 5,
+            'iterations': 30,
+            'inner_layers': True,
+        })
+        self.assertIn('Generated 5x5x5 scramble:', result[0].text)
+        self.assertIn('VCube only supports 3x3x3', result[0].text)
+        cube = server.get_cube()
+        self.assertTrue(cube.is_solved)
+
+    def test_scramble_cube_2x2x2_not_applied(self) -> None:
+        server.reset_cube()
+        result = server.handle_scramble_cube({'cube_size': 2, 'iterations': 8})
+        self.assertIn('Generated 2x2x2 scramble:', result[0].text)
+        self.assertIn('VCube only supports 3x3x3', result[0].text)
+        cube = server.get_cube()
+        self.assertTrue(cube.is_solved)
+
+    def test_scramble_cube_non_3x3_preserves_state(self) -> None:
+        server.reset_cube()
+        cube = server.get_cube()
+        cube.rotate('R U')
+        initial_state = cube.state
+        server.handle_scramble_cube({'cube_size': 4})
+        final_state = server.get_cube().state
+        self.assertEqual(initial_state, final_state)
+
+    def test_scramble_cube_iterations_zero_automatic(self) -> None:
+        server.reset_cube()
+        result = server.handle_scramble_cube({'cube_size': 3, 'iterations': 0})
+        self.assertIn('Applied scramble:', result[0].text)
+        cube = server.get_cube()
+        self.assertFalse(cube.is_solved)
+
+    def test_scramble_cube_all_parameters(self) -> None:
+        server.reset_cube()
+        result = server.handle_scramble_cube({
+            'cube_size': 3,
+            'iterations': 20,
+            'inner_layers': True,
+            'right_handed': True,
+        })
+        self.assertIsInstance(result, list)
+        self.assertIn('Applied scramble:', result[0].text)
+
 
 class TestHandleIsSolved(unittest.TestCase):
     def setUp(self) -> None:
@@ -294,8 +389,6 @@ class TestHandleAnalyzeAlgorithm(unittest.TestCase):
         self.assertIn('algorithm', data)
 
     def test_analyze_algorithm_has_metrics(self) -> None:
-        breakpoint()
-
         result = server.handle_analyze_algorithm({'algorithm': "R U R' U'"})
         data = json.loads(result[0].text)
         self.assertIn('metrics', data)
@@ -597,6 +690,25 @@ class TestCallTool(unittest.TestCase):
         result = asyncio.run(server.call_tool('scramble_cube', {}))
         self.assertIsInstance(result, list)
 
+    def test_call_tool_scramble_cube_with_cube_size(self) -> None:
+        result = asyncio.run(
+            server.call_tool('scramble_cube', {'cube_size': 4}),
+        )
+        self.assertIsInstance(result, list)
+        self.assertIn('Generated 4x4x4', result[0].text)
+
+    def test_call_tool_scramble_cube_with_all_params(self) -> None:
+        result = asyncio.run(
+            server.call_tool('scramble_cube', {
+                'cube_size': 3,
+                'iterations': 15,
+                'inner_layers': True,
+                'right_handed': False,
+            }),
+        )
+        self.assertIsInstance(result, list)
+        self.assertIn('Applied scramble:', result[0].text)
+
     def test_call_tool_is_solved(self) -> None:
         result = asyncio.run(server.call_tool('is_solved', {}))
         self.assertIsInstance(result, list)
@@ -758,9 +870,10 @@ class TestEdgeCases(unittest.TestCase):
         })
         self.assertIsInstance(result, list)
 
-    def test_scramble_with_small_length(self) -> None:
-        result = server.handle_scramble_cube({'length': 3})
+    def test_scramble_with_small_iterations(self) -> None:
+        result = server.handle_scramble_cube({'iterations': 3})
         self.assertIsInstance(result, list)
+        self.assertIn('Applied scramble:', result[0].text)
 
     def test_multiple_resets(self) -> None:
         server.handle_reset_cube({})

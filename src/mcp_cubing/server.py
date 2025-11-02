@@ -22,6 +22,9 @@ from mcp.types import Tool
 # Global cube state
 _cube_state: VCube | None = None
 
+# VCube only supports 3x3x3 cubes
+SUPPORTED_CUBE_SIZE = 3
+
 
 def get_cube() -> VCube:
     """
@@ -140,15 +143,42 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
             name='scramble_cube',
             description=(
                 'Apply a random scramble to the cube. '
-                'Generates a random state scramble.'
+                'Generates a random state scramble. '
+                'For cube sizes other than 3, generates the scramble '
+                'without applying it to the global VCube '
+                '(which only supports 3x3x3).'
             ),
             inputSchema={
                 'type': 'object',
                 'properties': {
-                    'length': {
+                    'cube_size': {
                         'type': 'integer',
-                        'description': 'Number of random moves (default: 20)',
-                        'default': 20,
+                        'description': (
+                            'Size of the cube '
+                            '(e.g., 3 for 3x3x3, 4 for 4x4x4)'
+                        ),
+                        'default': 3,
+                    },
+                    'iterations': {
+                        'type': 'integer',
+                        'description': (
+                            'Number of random moves '
+                            '(0 for automatic)'
+                        ),
+                        'default': 0,
+                    },
+                    'inner_layers': {
+                        'type': 'boolean',
+                        'description': 'Whether to include inner layer moves',
+                        'default': False,
+                    },
+                    'right_handed': {
+                        'type': 'boolean',
+                        'description': (
+                            'Whether to optimize for '
+                            'right-handed solving'
+                        ),
+                        'default': True,
                     },
                 },
             },
@@ -379,24 +409,50 @@ def handle_scramble_cube(arguments: dict[str, Any]) -> list[TextContent]:
     Handle the scramble_cube tool.
 
     Args:
-        arguments: Tool arguments containing optional 'length'.
+        arguments: Tool arguments containing optional cube_size, iterations,
+                   inner_layers, and right_handed.
 
     Returns:
         list[TextContent]: Result of scrambling cube.
 
     """
-    cube = get_cube()
-    length = arguments.get('length', 20)
+    cube_size = arguments.get('cube_size', 3)
+    iterations = arguments.get('iterations', 0)
+    inner_layers = arguments.get('inner_layers', False)
+    right_handed = arguments.get('right_handed', True)
 
-    scramble_alg = scramble(3, length)
-    cube.rotate(scramble_alg)
+    scramble_alg = scramble(
+        cube_size,
+        iterations,
+        inner_layers=inner_layers,
+        right_handed=right_handed,
+    )
 
+    # Only apply to global VCube if cube_size is 3 (VCube only supports 3x3x3)
+    if cube_size == SUPPORTED_CUBE_SIZE:
+        cube = get_cube()
+        cube.rotate(scramble_alg)
+
+        return [
+            TextContent(
+                type='text',
+                text=(
+                    f'Applied scramble: { scramble_alg }\n\n'
+                    f'{ cube.display() }'
+                ),
+            ),
+        ]
+
+    # For other cube sizes, just return the scramble without applying
     return [
         TextContent(
             type='text',
             text=(
-                f'Applied scramble: { scramble_alg }\n\n'
-                f'{ cube.display() }'
+                f'Generated { cube_size }x{ cube_size }x'
+                f'{ cube_size } scramble:\n'
+                f'{ scramble_alg }\n\n'
+                f'Note: VCube only supports 3x3x3 cubes, '
+                f'so the scramble was not applied to the global cube state.'
             ),
         ),
     ]
