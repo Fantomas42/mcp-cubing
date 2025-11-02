@@ -5,6 +5,7 @@ This server provides tools for working with virtual Rubik's cubes,
 including state management, move execution, visualization
 and algorithm analysis.
 """
+import asyncio
 import json
 from typing import Any
 
@@ -249,8 +250,334 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
     ]
 
 
+def handle_apply_moves(arguments: dict[str, Any]) -> list[TextContent]:
+    """
+    Handle the apply_moves tool.
+
+    Args:
+        arguments: Tool arguments containing 'moves'.
+
+    Returns:
+        list[TextContent]: Result of applying moves.
+
+    """
+    cube = get_cube()
+    moves = arguments['moves']
+
+    algo = Algorithm.parse_moves(moves)
+    cube.rotate(algo)
+
+    display = cube.display()
+
+    return [
+        TextContent(
+            type='text',
+            text=(
+                f'Applied moves: { algo }\n\n'
+                f'Cube state:\n{ display }'
+            ),
+        ),
+    ]
+
+
+def handle_get_state(arguments: dict[str, Any]) -> list[TextContent]:
+    """
+    Handle the get_state tool.
+
+    Args:
+        arguments: Tool arguments with optional display, palette, orientation.
+
+    Returns:
+        list[TextContent]: Current cube state.
+
+    """
+    cube = get_cube()
+    display_flag = arguments.get('display', True)
+    palette = arguments.get('palette', 'default')
+    orientation = arguments.get('orientation', '')
+
+    result_state = f'State: { cube.state }\n'
+    result_state += f'Solved: { cube.is_solved }\n'
+    result_state += f'Orientation: { cube.orientation }\n'
+
+    if display_flag:
+        display = cube.display(palette=palette, orientation=orientation)
+        result_state += f'\nVisualization:\n{ display }'
+
+    return [
+        TextContent(
+            type='text',
+            text=result_state,
+        ),
+    ]
+
+
+def handle_reset_cube(arguments: dict[str, Any]) -> list[TextContent]:  # noqa: ARG001
+    """
+    Handle the reset_cube tool.
+
+    Args:
+        arguments: Tool arguments (unused).
+
+    Returns:
+        list[TextContent]: Result of resetting cube.
+
+    """
+    cube = reset_cube()
+    return [
+        TextContent(
+            type='text',
+            text=(
+                f'Cube reset to solved state.\n\n'
+                f'{ cube.display() }'
+            ),
+        ),
+    ]
+
+
+def handle_scramble_cube(arguments: dict[str, Any]) -> list[TextContent]:
+    """
+    Handle the scramble_cube tool.
+
+    Args:
+        arguments: Tool arguments containing optional 'length'.
+
+    Returns:
+        list[TextContent]: Result of scrambling cube.
+
+    """
+    cube = get_cube()
+    length = arguments.get('length', 20)
+
+    scramble_alg = scramble(length)
+    cube.rotate(scramble_alg)
+
+    return [
+        TextContent(
+            type='text',
+            text=(
+                f'Applied scramble: { scramble_alg }\n\n'
+                f'{ cube.display() }'
+            ),
+        ),
+    ]
+
+
+def handle_is_solved(arguments: dict[str, Any]) -> list[TextContent]:  # noqa: ARG001
+    """
+    Handle the is_solved tool.
+
+    Args:
+        arguments: Tool arguments (unused).
+
+    Returns:
+        list[TextContent]: Whether cube is solved.
+
+    """
+    cube = get_cube()
+    solved = cube.is_solved
+
+    return [
+        TextContent(
+            type='text',
+            text=f'Cube is { "solved" if solved else "not solved" }.',
+        ),
+    ]
+
+
+def handle_parse_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
+    """
+    Handle the parse_algorithm tool.
+
+    Args:
+        arguments: Tool arguments containing 'algorithm'.
+
+    Returns:
+        list[TextContent]: Parsed algorithm information.
+
+    """
+    algorithm = arguments['algorithm']
+
+    algo = Algorithm.parse_moves(algorithm)
+
+    moves_info = [
+        {
+            'move': str(move),
+            'base': move.base_move,
+            'modifier': move.modifier,
+            'layer': move.layer,
+            'is_wide': move.is_wide_move,
+            'is_rotation': move.is_rotation_move,
+        } for move in algo
+    ]
+
+    result_parse = {
+        'algorithm': str(algo),
+        'move_count': len(algo),
+        'moves': moves_info,
+    }
+
+    return [
+        TextContent(
+            type='text',
+            text=json.dumps(result_parse, indent=2),
+        ),
+    ]
+
+
+def handle_analyze_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
+    """
+    Handle the analyze_algorithm tool.
+
+    Args:
+        arguments: Tool arguments containing 'algorithm'.
+
+    Returns:
+        list[TextContent]: Algorithm analysis results.
+
+    """
+    algorithm = arguments['algorithm']
+
+    algo = Algorithm.parse_moves(algorithm)
+    metrics = algo.metrics
+    ergonomics = algo.ergonomics
+    structure = algo.structure
+    impacts = algo.impacts
+
+    result_analyze = {
+        'algorithm': str(algo),
+        'metrics': {
+            'htm': metrics.htm,
+            'qtm': metrics.qtm,
+            'stm': metrics.stm,
+            'etm': metrics.etm,
+            'generators': metrics.generators,
+        },
+        'ergonomics': {
+            'comfort_score': ergonomics.comfort_score,
+            'regrip_count': ergonomics.regrip_count,
+            'hand_balance_ratio': ergonomics.hand_balance_ratio,
+        },
+        'structure': {
+            'compressed': structure.compressed,
+            'conjugate_count': structure.conjugate_count,
+            'commutator_count': structure.commutator_count,
+        },
+        'impacts': {
+            'mobilized_count': impacts.facelets_mobilized_count,
+            'facelets_transformation_mask':
+            impacts.facelets_transformation_mask,
+        },
+        'cycles': algo.cycles,
+        'min_cube_size': algo.min_cube_size,
+    }
+
+    return [
+        TextContent(
+            type='text',
+            text=json.dumps(result_analyze, indent=2),
+        ),
+    ]
+
+
+def handle_visualize_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
+    """
+    Handle the visualize_algorithm tool.
+
+    Args:
+        arguments: Tool arguments with 'algorithm' and optional 'orientation'.
+
+    Returns:
+        list[TextContent]: Algorithm visualization.
+
+    """
+    algorithm = arguments['algorithm']
+    orientation = arguments.get('orientation', '')
+
+    algo = Algorithm.parse_moves(algorithm)
+
+    # Create a solved cube and apply the algorithm
+    temp_cube = VCube()
+    temp_cube.rotate(algo)
+
+    # Get the impact mask
+    mask = algo.impacts.facelets_transformation_mask
+
+    display = temp_cube.display(orientation=orientation, mask=mask)
+
+    result_visualize = f'Algorithm: { algo }\n'
+    result_visualize += f'Moves: { len(algo) }\n'
+    result_visualize += (
+        'Affected pieces: '
+        f'{ algo.impacts.facelets_mobilized_count }/54\n\n'
+    )
+    result_visualize += (
+        'Visualization (affected pieces highlighted):\n'
+        f'{ display }'
+    )
+
+    return [
+        TextContent(
+            type='text',
+            text=result_visualize,
+        ),
+    ]
+
+
+def handle_get_history(arguments: dict[str, Any]) -> list[TextContent]:  # noqa: ARG001
+    """
+    Handle the get_history tool.
+
+    Args:
+        arguments: Tool arguments (unused).
+
+    Returns:
+        list[TextContent]: Move history.
+
+    """
+    cube = get_cube()
+    history = ' '.join(cube.history)
+
+    return [
+        TextContent(
+            type='text',
+            text=(
+                f'Move history ({ len(cube.history) } moves):\n'
+                f'{ history or "(empty)" }'
+            ),
+        ),
+    ]
+
+
+def handle_set_state(arguments: dict[str, Any]) -> list[TextContent]:
+    """
+    Handle the set_state tool.
+
+    Args:
+        arguments: Tool arguments containing 'state'.
+
+    Returns:
+        list[TextContent]: Result of setting state.
+
+    """
+    state = arguments['state']
+
+    global _cube_state  # noqa: PLW0603
+    _cube_state = VCube(state)
+
+    return [
+        TextContent(
+            type='text',
+            text=(
+                f'Cube state set successfully.\n\n'
+                f'{ _cube_state.display() }'
+            ),
+        ),
+    ]
+
+
 @app.call_tool()
-async def call_tool(  # noqa: RUF029, PLR0911, C901, PLR0915, PLR0914
+async def call_tool(  # noqa: RUF029
     name: str,
     arguments: dict[str, Any],
 ) -> list[TextContent]:
@@ -265,221 +592,22 @@ async def call_tool(  # noqa: RUF029, PLR0911, C901, PLR0915, PLR0914
         list[TextContent]: The result of the tool call.
 
     """
-    if name == 'apply_moves':
-        cube = get_cube()
-        moves = arguments['moves']
+    handlers: dict[str, Any] = {
+        'apply_moves': handle_apply_moves,
+        'get_state': handle_get_state,
+        'reset_cube': handle_reset_cube,
+        'scramble_cube': handle_scramble_cube,
+        'is_solved': handle_is_solved,
+        'parse_algorithm': handle_parse_algorithm,
+        'analyze_algorithm': handle_analyze_algorithm,
+        'visualize_algorithm': handle_visualize_algorithm,
+        'get_history': handle_get_history,
+        'set_state': handle_set_state,
+    }
 
-        algo = Algorithm.parse_moves(moves)
-        cube.rotate(algo)
-
-        display = cube.display()
-
-        return [
-            TextContent(
-                type='text',
-                text=(
-                    f'Applied moves: { algo }\n\n'
-                    f'Cube state:\n{ display }'
-                ),
-            ),
-        ]
-
-    if name == 'get_state':
-        cube = get_cube()
-        display_flag = arguments.get('display', True)
-        palette = arguments.get('palette', 'default')
-        orientation = arguments.get('orientation', '')
-
-        result_state = f'State: { cube.state }\n'
-        result_state += f'Solved: { cube.is_solved }\n'
-        result_state += f'Orientation: { cube.orientation }\n'
-
-        if display_flag:
-            display = cube.display(palette=palette, orientation=orientation)
-            result_state += f'\nVisualization:\n{ display }'
-
-        return [
-            TextContent(
-                type='text',
-                text=result_state,
-            ),
-        ]
-
-    if name == 'reset_cube':
-        cube = reset_cube()
-        return [
-            TextContent(
-                type='text',
-                text=(
-                    f'Cube reset to solved state.\n\n'
-                    f'{ cube.display() }'
-                ),
-            ),
-        ]
-
-    if name == 'scramble_cube':
-        cube = get_cube()
-        length = arguments.get('length', 20)
-
-        scramble_alg = scramble(length)
-        cube.rotate(scramble_alg)
-
-        return [
-            TextContent(
-                type='text',
-                text=(
-                    f'Applied scramble: { scramble_alg }\n\n'
-                    f'{ cube.display() }'
-                ),
-            ),
-        ]
-
-    if name == 'is_solved':
-        cube = get_cube()
-        solved = cube.is_solved
-
-        return [
-            TextContent(
-                type='text',
-                text=f'Cube is { "solved" if solved else "not solved" }.',
-            ),
-        ]
-
-    if name == 'parse_algorithm':
-        algorithm = arguments['algorithm']
-
-        algo = Algorithm.parse_moves(algorithm)
-
-        moves_info = [
-            {
-                'move': str(move),
-                'base': move.base_move,
-                'modifier': move.modifier,
-                'layer': move.layer,
-                'is_wide': move.is_wide_move,
-                'is_rotation': move.is_rotation_move,
-            } for move in algo
-        ]
-
-        result_parse = {
-            'algorithm': str(algo),
-            'move_count': len(algo),
-            'moves': moves_info,
-        }
-
-        return [
-            TextContent(
-                type='text',
-                text=json.dumps(result_parse, indent=2),
-            ),
-        ]
-
-    if name == 'analyze_algorithm':
-        algorithm = arguments['algorithm']
-
-        algo = Algorithm.parse_moves(algorithm)
-        metrics = algo.metrics
-        ergonomics = algo.ergonomics
-        structure = algo.structure
-        impacts = algo.impacts
-
-        result_analyze = {
-            'algorithm': str(algo),
-            'metrics': {
-                'htm': metrics.htm,
-                'qtm': metrics.qtm,
-                'stm': metrics.stm,
-                'etm': metrics.etm,
-                'generators': metrics.generators,
-            },
-            'ergonomics': {
-                'comfort_score': ergonomics.comfort_score,
-                'regrip_count': ergonomics.regrip_count,
-                'hand_balance_ratio': ergonomics.hand_balance_ratio,
-            },
-            'structure': {
-                'compressed': structure.compressed,
-                'conjugate_count': structure.conjugate_count,
-                'commutator_count': structure.commutator_count,
-            },
-            'impacts': {
-                'mobilized_count': impacts.facelets_mobilized_count,
-                'facelets_transformation_mask':
-                impacts.facelets_transformation_mask,
-            },
-            'cycles': algo.cycles,
-            'min_cube_size': algo.min_cube_size,
-        }
-
-        return [
-            TextContent(
-                type='text',
-                text=json.dumps(result_analyze, indent=2),
-            ),
-        ]
-
-    if name == 'visualize_algorithm':
-        algorithm = arguments['algorithm']
-        orientation = arguments.get('orientation', '')
-
-        algo = Algorithm.parse_moves(algorithm)
-
-        # Create a solved cube and apply the algorithm
-        temp_cube = VCube()
-        temp_cube.rotate(algo)
-
-        # Get the impact mask
-        mask = algo.impacts.facelets_transformation_mask
-
-        display = temp_cube.display(orientation=orientation, mask=mask)
-
-        result_visualize = f'Algorithm: { algo }\n'
-        result_visualize += f'Moves: { len(algo) }\n'
-        result_visualize += (
-            'Affected pieces: '
-            f'{ algo.impacts.facelets_mobilized_count }/54\n\n'
-        )
-        result_visualize += (
-            'Visualization (affected pieces highlighted):\n'
-            f'{ display }'
-        )
-
-        return [
-            TextContent(
-                type='text',
-                text=result_visualize,
-            ),
-        ]
-
-    if name == 'get_history':
-        cube = get_cube()
-        history = ' '.join(cube.history)
-
-        return [
-            TextContent(
-                type='text',
-                text=(
-                    f'Move history ({ len(cube.history) } moves):\n'
-                    f'{ history or "(empty)" }'
-                ),
-            ),
-        ]
-
-    if name == 'set_state':
-        state = arguments['state']
-
-        global _cube_state  # noqa: PLW0603
-        _cube_state = VCube(state)
-
-        return [
-            TextContent(
-                type='text',
-                text=(
-                    f'Cube state set successfully.\n\n'
-                    f'{ _cube_state.display() }'
-                ),
-            ),
-        ]
+    handler = handlers.get(name)
+    if handler:
+        return handler(arguments)
 
     return [
         TextContent(
@@ -500,5 +628,4 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    import asyncio
     asyncio.run(main())
