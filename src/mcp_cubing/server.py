@@ -232,9 +232,9 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
             },
         ),
         Tool(
-            name='inverse_algorithm',
+            name='mirror_algorithm',
             description=(
-                'Get the inverse of an algorithm '
+                'Get the mirror of an algorithm '
                 '(reverses order and inverts each move).'
             ),
             inputSchema={
@@ -242,7 +242,7 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
                 'properties': {
                     'algorithm': {
                         'type': 'string',
-                        'description': 'Algorithm to invert',
+                        'description': 'Algorithm to mirror',
                     },
                 },
                 'required': ['algorithm'],
@@ -715,9 +715,9 @@ def handle_set_state(arguments: dict[str, Any]) -> list[TextContent]:
     ]
 
 
-def handle_inverse_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
+def handle_mirror_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
     """
-    Handle the inverse_algorithm tool.
+    Handle the mirror_algorithm tool.
 
     Args:
         arguments: Tool arguments containing 'algorithm'.
@@ -729,14 +729,14 @@ def handle_inverse_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
     algorithm = arguments['algorithm']
 
     algo = Algorithm.parse_moves(algorithm)
-    inverted = mirror_moves(algo)
+    mirrored = mirror_moves(algo)
 
     return [
         TextContent(
             type='text',
             text=(
                 f'Original: { algo }\n'
-                f'Inverse: { inverted }'
+                f'Mirrored: { mirrored }'
             ),
         ),
     ]
@@ -801,7 +801,7 @@ async def call_tool(  # noqa: RUF029
         'visualize_algorithm': handle_visualize_algorithm,
         'get_history': handle_get_history,
         'set_state': handle_set_state,
-        'inverse_algorithm': handle_inverse_algorithm,
+        'mirror_algorithm': handle_mirror_algorithm,
         'simplify_algorithm': handle_simplify_algorithm,
     }
 

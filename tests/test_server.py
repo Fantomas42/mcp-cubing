@@ -313,7 +313,7 @@ class TestHandleIsSolved(unittest.TestCase):
         result = server.handle_is_solved({})
         self.assertIn('not solved', result[0].text)
 
-    def test_is_solved_after_inverse(self) -> None:
+    def test_is_solved_after_mirror(self) -> None:
         cube = server.get_cube()
         cube.rotate("R U R' U'")
         cube.rotate("U R U' R'")
@@ -597,33 +597,33 @@ class TestHandleSetState(unittest.TestCase):
         self.assertIn('Cube state set successfully', result[0].text)
 
 
-class TestHandleInverseAlgorithm(unittest.TestCase):
+class TestHandleMirrorAlgorithm(unittest.TestCase):
     def setUp(self) -> None:
         server._cube_state = None
 
     def tearDown(self) -> None:
         server._cube_state = None
 
-    def test_inverse_algorithm_valid(self) -> None:
-        result = server.handle_inverse_algorithm({'algorithm': "R U R' U'"})
+    def test_mirror_algorithm_valid(self) -> None:
+        result = server.handle_mirror_algorithm({'algorithm': "R U R' U'"})
         self.assertIsInstance(result, list)
         self.assertIn('Original:', result[0].text)
-        self.assertIn('Inverse:', result[0].text)
+        self.assertIn('Mirrored:', result[0].text)
 
-    def test_inverse_algorithm_simple(self) -> None:
-        result = server.handle_inverse_algorithm({'algorithm': 'R'})
+    def test_mirror_algorithm_simple(self) -> None:
+        result = server.handle_mirror_algorithm({'algorithm': 'R'})
         self.assertIsInstance(result, list)
-        self.assertIn('Inverse:', result[0].text)
+        self.assertIn('Mirrored:', result[0].text)
 
-    def test_inverse_algorithm_does_not_affect_global_state(self) -> None:
+    def test_mirror_algorithm_does_not_affect_global_state(self) -> None:
         server.reset_cube()
         initial_state = server.get_cube().state
-        server.handle_inverse_algorithm({'algorithm': "R U R' U'"})
+        server.handle_mirror_algorithm({'algorithm': "R U R' U'"})
         final_state = server.get_cube().state
         self.assertEqual(initial_state, final_state)
 
-    def test_inverse_algorithm_empty(self) -> None:
-        result = server.handle_inverse_algorithm({'algorithm': ''})
+    def test_mirror_algorithm_empty(self) -> None:
+        result = server.handle_mirror_algorithm({'algorithm': ''})
         self.assertIsInstance(result, list)
 
 
@@ -740,9 +740,9 @@ class TestCallTool(unittest.TestCase):
         result = asyncio.run(server.call_tool('set_state', {'state': solved}))
         self.assertIsInstance(result, list)
 
-    def test_call_tool_inverse_algorithm(self) -> None:
+    def test_call_tool_mirror_algorithm(self) -> None:
         result = asyncio.run(
-            server.call_tool('inverse_algorithm', {'algorithm': 'R'}),
+            server.call_tool('mirror_algorithm', {'algorithm': 'R'}),
         )
         self.assertIsInstance(result, list)
 
@@ -800,7 +800,7 @@ class TestListTools(unittest.TestCase):
             'is_solved',
             'parse_algorithm',
             'analyze_algorithm',
-            'inverse_algorithm',
+            'mirror_algorithm',
             'simplify_algorithm',
             'visualize_algorithm',
             'get_history',
@@ -906,7 +906,7 @@ class TestEdgeCases(unittest.TestCase):
         })
         self.assertIsInstance(result, list)
 
-    def test_inverse_of_inverse(self) -> None:
+    def test_mirror_of_mirror(self) -> None:
         server.reset_cube()
         server.get_cube().rotate("R U R' U'")
         server.get_cube().rotate("U R U' R'")
@@ -980,9 +980,9 @@ class TestErrorHandling(unittest.TestCase):
         )
         self.assertIn('Error:', result[0].text)
 
-    def test_invalid_algorithm_inverse(self) -> None:
+    def test_invalid_algorithm_mirror(self) -> None:
         result = asyncio.run(
-            server.call_tool('inverse_algorithm', {'algorithm': 'WRONG'}),
+            server.call_tool('mirror_algorithm', {'algorithm': 'WRONG'}),
         )
         self.assertIn('Error:', result[0].text)
 
