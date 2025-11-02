@@ -12,6 +12,8 @@ from typing import Any
 from cubing_algs import Algorithm
 from cubing_algs import VCube
 from cubing_algs.scrambler import scramble
+from cubing_algs.transform.mirror import mirror_moves
+from cubing_algs.transform.size import compress_moves
 from mcp.server import Server  # type: ignore[import-not-found]
 from mcp.server.stdio import stdio_server  # type: ignore[import-not-found]
 from mcp.types import TextContent  # type: ignore[import-not-found]
@@ -182,9 +184,10 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
         Tool(
             name='analyze_algorithm',
             description=(
-                'Analyze an algorithm and return comprehensive metrics '
-                'including HTM/QTM counts, ergonomics, structure '
-                'and impact analysis.'
+                'Comprehensive algorithm analysis: metrics (HTM/QTM/STM/ETM/RTM), '
+                'ergonomics (comfort, execution time, finger usage), '
+                'structure (conjugates, commutators, efficiency), '
+                'impacts (pieces affected, patterns, complexity).'
             ),
             inputSchema={
                 'type': 'object',
@@ -192,6 +195,40 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
                     'algorithm': {
                         'type': 'string',
                         'description': 'Algorithm to analyze',
+                    },
+                },
+                'required': ['algorithm'],
+            },
+        ),
+        Tool(
+            name='inverse_algorithm',
+            description=(
+                'Get the inverse of an algorithm '
+                '(reverses order and inverts each move).'
+            ),
+            inputSchema={
+                'type': 'object',
+                'properties': {
+                    'algorithm': {
+                        'type': 'string',
+                        'description': 'Algorithm to invert',
+                    },
+                },
+                'required': ['algorithm'],
+            },
+        ),
+        Tool(
+            name='simplify_algorithm',
+            description=(
+                'Optimize and simplify an algorithm by removing redundant moves, '
+                'combining sequences (R R -> R2), and canceling inverses.'
+            ),
+            inputSchema={
+                'type': 'object',
+                'properties': {
+                    'algorithm': {
+                        'type': 'string',
+                        'description': 'Algorithm to simplify',
                     },
                 },
                 'required': ['algorithm'],
@@ -452,6 +489,12 @@ def handle_analyze_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
             'qtm': metrics.qtm,
             'stm': metrics.stm,
             'etm': metrics.etm,
+            'rtm': metrics.rtm,
+            'qstm': metrics.qstm,
+            'pauses': metrics.pauses,
+            'rotations': metrics.rotations,
+            'outer_moves': metrics.outer_moves,
+            'inner_moves': metrics.inner_moves,
             'generators': metrics.generators,
         },
         'ergonomics': {
@@ -609,6 +652,65 @@ def handle_set_state(arguments: dict[str, Any]) -> list[TextContent]:
     ]
 
 
+def handle_inverse_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
+    """
+    Handle the inverse_algorithm tool.
+
+    Args:
+        arguments: Tool arguments containing 'algorithm'.
+
+    Returns:
+        list[TextContent]: Inverted algorithm.
+
+    """
+    algorithm = arguments['algorithm']
+
+    algo = Algorithm.parse_moves(algorithm)
+    inverted = mirror_moves(algo)
+
+    return [
+        TextContent(
+            type='text',
+            text=(
+                f'Original: { algo }\n'
+                f'Inverse: { inverted }'
+            ),
+        ),
+    ]
+
+
+def handle_simplify_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
+    """
+    Handle the simplify_algorithm tool.
+
+    Args:
+        arguments: Tool arguments containing 'algorithm'.
+
+    Returns:
+        list[TextContent]: Simplified algorithm.
+
+    """
+    algorithm = arguments['algorithm']
+
+    algo = Algorithm.parse_moves(algorithm)
+    simplified = compress_moves(algo)
+
+    original_length = len(algo)
+    simplified_length = len(simplified)
+    reduction = original_length - simplified_length
+
+    return [
+        TextContent(
+            type='text',
+            text=(
+                f'Original ({ original_length } moves): { algo }\n'
+                f'Simplified ({ simplified_length } moves): { simplified }\n'
+                f'Reduction: { reduction } move(s)'
+            ),
+        ),
+    ]
+
+
 @app.call_tool()
 async def call_tool(  # noqa: RUF029
     name: str,
@@ -636,18 +738,28 @@ async def call_tool(  # noqa: RUF029
         'visualize_algorithm': handle_visualize_algorithm,
         'get_history': handle_get_history,
         'set_state': handle_set_state,
+        'inverse_algorithm': handle_inverse_algorithm,
+        'simplify_algorithm': handle_simplify_algorithm,
     }
 
     handler = handlers.get(name)
-    if handler:
-        return handler(arguments)
+    if not handler:
+        return [
+            TextContent(
+                type='text',
+                text=f'Unknown tool: {name}',
+            ),
+        ]
 
-    return [
-        TextContent(
-            type='text',
-            text=f'Unknown tool: {name}',
-        ),
-    ]
+    try:
+        return handler(arguments)
+    except Exception as e:  # noqa: BLE001
+        return [
+            TextContent(
+                type='text',
+                text=f'Error: {e!s}',
+            ),
+        ]
 
 
 async def main() -> None:
