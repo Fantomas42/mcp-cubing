@@ -10,7 +10,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "mcp>=1.1.0",
-    "cubing-algs>=1.0.0",
+    "cubing-algs>=1.0.14",
+    "kociemba==1.2.1",
 ]
 keywords = ["mcp", "rubick", "cube", "speedcubing", "solve", "algorithm"]
 authors = [{name = "Fantomas42", email = "fantomas42@gmail.com"}]

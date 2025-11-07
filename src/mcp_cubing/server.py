@@ -14,6 +14,7 @@ from cubing_algs import VCube
 from cubing_algs.scrambler import scramble
 from cubing_algs.transform.mirror import mirror_moves
 from cubing_algs.transform.size import compress_moves
+from kociemba import solve
 from mcp.server import Server  # type: ignore[import-not-found]
 from mcp.server.stdio import stdio_server  # type: ignore[import-not-found]
 from mcp.types import TextContent  # type: ignore[import-not-found]
@@ -314,6 +315,18 @@ async def list_tools() -> list[Tool]:  # noqa: RUF029
                     },
                 },
                 'required': ['state'],
+            },
+        ),
+        Tool(
+            name='solve_cube',
+            description=(
+                'Find a solution for the current cube state using the '
+                'Kociemba two-phase algorithm. Typically returns solutions '
+                'in 20 moves or less.'
+            ),
+            inputSchema={
+                'type': 'object',
+                'properties': {},
             },
         ),
     ]
@@ -774,6 +787,38 @@ def handle_simplify_algorithm(arguments: dict[str, Any]) -> list[TextContent]:
     ]
 
 
+def handle_solve_cube(arguments: dict[str, Any]) -> list[TextContent]:  # noqa: ARG001
+    """
+    Handle the solve_cube tool using Kociemba two-phase algorithm.
+
+    Args:
+        arguments: Tool arguments (unused).
+
+    Returns:
+        list[TextContent]: Solution algorithm.
+
+    """
+    cube = get_cube()
+
+    # Check if already solved
+    if cube.is_solved:
+        return [
+            TextContent(
+                type='text',
+                text='Cube is already solved!',
+            ),
+        ]
+
+    solution = Algorithm.parse_moves(cube.state)
+
+    return [
+        TextContent(
+            type='text',
+            text=f'Solution: { solution }\nMoves: { len(solution) }',
+        ),
+    ]
+
+
 @app.call_tool()
 async def call_tool(  # noqa: RUF029
     name: str,
@@ -803,6 +848,7 @@ async def call_tool(  # noqa: RUF029
         'set_state': handle_set_state,
         'mirror_algorithm': handle_mirror_algorithm,
         'simplify_algorithm': handle_simplify_algorithm,
+        'solve_cube': handle_solve_cube,
     }
 
     handler = handlers.get(name)
