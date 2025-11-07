@@ -9,15 +9,15 @@ import asyncio
 import json
 from typing import Any
 
-from cubing_algs import Algorithm
-from cubing_algs import VCube
+from cubing_algs.algorithm import Algorithm
 from cubing_algs.scrambler import scramble
 from cubing_algs.transform.mirror import mirror_moves
 from cubing_algs.transform.size import compress_moves
-from kociemba import solve
-from mcp.server import Server  # type: ignore[import-not-found]
-from mcp.server.stdio import stdio_server  # type: ignore[import-not-found]
-from mcp.types import TextContent  # type: ignore[import-not-found]
+from cubing_algs.vcube import VCube
+from kociemba import solve  # type: ignore[import-untyped]
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import TextContent
 from mcp.types import Tool
 
 # Global cube state
