@@ -809,7 +809,7 @@ def handle_solve_cube(arguments: dict[str, Any]) -> list[TextContent]:  # noqa: 
             ),
         ]
 
-    solution = Algorithm.parse_moves(cube.state)
+    solution = Algorithm.parse_moves(solve(cube.state))
 
     return [
         TextContent(
