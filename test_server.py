@@ -6,8 +6,8 @@ import sys
 try:
     from cubing_algs import Algorithm
 
-    from mcp_cubing.server import app
     from mcp_cubing.server import get_cube
+    from mcp_cubing.server import mcp
     from mcp_cubing.server import reset_cube
     print('✓ All imports successful')
 except ImportError as e:
@@ -44,7 +44,7 @@ def test_basic() -> None:
     print(f'✓ Reset cube, is solved: {cube.is_solved}')
 
     # Test MCP server is configured
-    print(f'\n✓ MCP server initialized with app name: {app.name}')
+    print(f'\n✓ MCP server initialized with name: {mcp.name}')
 
     print('\n✅ All tests passed!')
 
