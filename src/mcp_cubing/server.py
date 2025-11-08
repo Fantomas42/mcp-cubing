@@ -8,7 +8,6 @@ and algorithm analysis.
 
 # ruff: noqa: RUF029, TRY300, UP042
 import json
-from enum import Enum
 
 from cubing_algs.algorithm import Algorithm
 from cubing_algs.scrambler import scramble
@@ -17,11 +16,6 @@ from cubing_algs.transform.size import compress_moves
 from cubing_algs.vcube import VCube
 from kociemba import solve  # type: ignore[import-untyped]
 from mcp.server.fastmcp import FastMCP
-from mcp.types import TextContent
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import Field
-from pydantic import field_validator
 
 # ============================================================================
 # Constants
@@ -93,290 +87,6 @@ def set_cube_state(state: str) -> VCube:
 
     _cube_state = VCube(state)
     return _cube_state
-
-
-# ============================================================================
-# Enums
-# ============================================================================
-
-
-class ResponseFormat(str, Enum):
-    """Output format for tool responses."""
-
-    MARKDOWN = 'markdown'
-    JSON = 'json'
-
-
-# ============================================================================
-# Pydantic Input Models
-# ============================================================================
-
-
-class ApplyMovesInput(BaseModel):
-    """Input model for applying moves to the cube."""
-
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True,
-    )
-
-    moves: str = Field(
-        ...,
-        description=(
-            "Move sequence in standard notation. Supports full WCA notation "
-            "including wide moves (Rw, Lw), rotations (x, y, z), slice moves "
-            "(M, E, S), commutators [A, B], and conjugates [A: B]. "
-            "Examples: \"R U R' U'\", \"Rw U2 x\", \"[R, U]\""
-        ),
-        min_length=1,
-        max_length=1000,
-    )
-
-    @field_validator('moves')
-    @classmethod
-    def validate_moves(cls, v: str) -> str:
-        """
-        Validate moves string is not empty.
-
-        Returns:
-            str: The validated and stripped moves string.
-
-        Raises:
-            ValueError: If moves string is empty or whitespace only.
-
-        """
-        if not v.strip():
-            msg = 'Moves cannot be empty or whitespace only'
-            raise ValueError(msg)
-        return v.strip()
-
-
-class GetStateInput(BaseModel):
-    """Input model for getting cube state."""
-
-    model_config = ConfigDict(
-        validate_assignment=True,
-    )
-
-    display: bool = Field(
-        default=True,
-        description='Whether to include visual representation (default: true)',
-    )
-    palette: str = Field(
-        default='default',
-        description=(
-            "Color palette for display: 'default', 'pastel', 'dracula', "
-            "'colorblind', 'bold', 'mono', etc."
-        ),
-    )
-    orientation: str = Field(
-        default='',
-        description=(
-            "Cube orientation as 2-character string. First character is top "
-            "face, second is front face. Examples: 'UF' (white top, green "
-            "front), 'RD' (red top, yellow front). Leave empty for default."
-        ),
-        max_length=2,
-    )
-
-
-class ScrambleCubeInput(BaseModel):
-    """Input model for scrambling the cube."""
-
-    model_config = ConfigDict(
-        validate_assignment=True,
-    )
-
-    cube_size: int = Field(
-        default=3,
-        description=(
-            'Size of the cube (e.g., 3 for 3x3x3, 4 for 4x4x4, 5 for 5x5x5). '
-            'Note: VCube only supports 3x3x3, so non-3 sizes will generate '
-            'the scramble without applying it to the global cube.'
-        ),
-        ge=2,
-        le=7,
-    )
-    iterations: int = Field(
-        default=0,
-        description=(
-            'Number of random moves (0 for automatic length based on cube '
-            'size: 20 for 3x3x3, 40 for 4x4x4, 60 for 5x5x5)'
-        ),
-        ge=0,
-        le=200,
-    )
-    inner_layers: bool = Field(
-        default=False,
-        description=(
-            'Whether to include inner layer moves for larger cubes '
-            '(e.g., 2R, 3Rw for 4x4x4+)'
-        ),
-    )
-    right_handed: bool = Field(
-        default=True,
-        description=(
-            'Whether to optimize scramble for right-handed solving '
-            '(fewer awkward moves)'
-        ),
-    )
-
-
-class AlgorithmInput(BaseModel):
-    """Input model for algorithm operations (parse, analyze, etc.)."""
-
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True,
-    )
-
-    algorithm: str = Field(
-        ...,
-        description=(
-            "Algorithm to process in standard notation. Examples: "
-            "\"R U R' U'\", \"F R U R' U' F'\", \"[R, U]\""
-        ),
-        min_length=1,
-        max_length=1000,
-    )
-
-    @field_validator('algorithm')
-    @classmethod
-    def validate_algorithm(cls, v: str) -> str:
-        """
-        Validate algorithm string is not empty.
-
-        Returns:
-            str: The validated and stripped algorithm string.
-
-        Raises:
-            ValueError: If algorithm string is empty or whitespace only.
-
-        """
-        if not v.strip():
-            msg = 'Algorithm cannot be empty or whitespace only'
-            raise ValueError(msg)
-        return v.strip()
-
-
-class AnalyzeAlgorithmInput(BaseModel):
-    """Input model for algorithm analysis with response format option."""
-
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True,
-    )
-
-    algorithm: str = Field(
-        ...,
-        description='Algorithm to analyze in standard notation',
-        min_length=1,
-        max_length=1000,
-    )
-    response_format: ResponseFormat = Field(
-        default=ResponseFormat.JSON,
-        description=(
-            "Output format: 'json' for structured machine-readable data "
-            "(default), 'markdown' for human-readable formatted text"
-        ),
-    )
-
-    @field_validator('algorithm')
-    @classmethod
-    def validate_algorithm(cls, v: str) -> str:
-        """
-        Validate algorithm string is not empty.
-
-        Returns:
-            str: The validated and stripped algorithm string.
-
-        Raises:
-            ValueError: If algorithm string is empty or whitespace only.
-
-        """
-        if not v.strip():
-            msg = 'Algorithm cannot be empty or whitespace only'
-            raise ValueError(msg)
-        return v.strip()
-
-
-class VisualizeAlgorithmInput(BaseModel):
-    """Input model for algorithm visualization."""
-
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True,
-    )
-
-    algorithm: str = Field(
-        ...,
-        description='Algorithm to visualize',
-        min_length=1,
-        max_length=1000,
-    )
-    orientation: str = Field(
-        default='',
-        description='Cube orientation for display (2-char string like "UF")',
-        max_length=2,
-    )
-
-    @field_validator('algorithm')
-    @classmethod
-    def validate_algorithm(cls, v: str) -> str:
-        """
-        Validate algorithm string is not empty.
-
-        Returns:
-            str: The validated and stripped algorithm string.
-
-        Raises:
-            ValueError: If algorithm string is empty or whitespace only.
-
-        """
-        if not v.strip():
-            msg = 'Algorithm cannot be empty or whitespace only'
-            raise ValueError(msg)
-        return v.strip()
-
-
-class SetStateInput(BaseModel):
-    """Input model for setting cube state."""
-
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True,
-    )
-
-    state: str = Field(
-        ...,
-        description=(
-            '54-character facelet string representing the cube state. '
-            'Order: U face (9), R face (9), F face (9), D face (9), '
-            'L face (9), B face (9). Each face is top-left to bottom-right. '
-            'Example solved state: '
-            '"UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB"'
-        ),
-        min_length=54,
-        max_length=54,
-    )
-
-    @field_validator('state')
-    @classmethod
-    def validate_state(cls, v: str) -> str:
-        """
-        Validate state string is exactly 54 characters.
-
-        Returns:
-            str: The validated and stripped state string.
-
-        Raises:
-            ValueError: If state string is not exactly 54 characters.
-
-        """
-        if len(v) != 54:  # noqa: PLR2004
-            msg = f'State must be exactly 54 characters, got {len(v)}'
-            raise ValueError(msg)
-        return v.strip()
 
 
 # ============================================================================
@@ -553,8 +263,9 @@ mcp = FastMCP('mcp-cubing')
         'idempotentHint': False,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
-async def cubing_apply_moves(params: ApplyMovesInput) -> list[TextContent]:
+async def cubing_apply_moves(moves: str) -> str:
     """
     Apply a sequence of moves to the global cube state.
 
@@ -563,8 +274,10 @@ async def cubing_apply_moves(params: ApplyMovesInput) -> list[TextContent]:
     moves, rotations, slice moves, commutators, and conjugates.
 
     Args:
-        params (ApplyMovesInput): Validated input containing:
-            - moves (str): Move sequence in standard notation
+        moves (str): Move sequence in standard notation. Supports full WCA
+            notation including wide moves (Rw, Lw), rotations (x, y, z),
+            slice moves (M, E, S), commutators [A, B], and conjugates [A: B].
+            Examples: "R U R' U'", "Rw U2 x", "[R, U]"
 
     Returns:
         list[TextContent]: Applied moves and current cube visualization
@@ -586,18 +299,15 @@ async def cubing_apply_moves(params: ApplyMovesInput) -> list[TextContent]:
     """
     try:
         cube = get_cube()
-        algo = Algorithm.parse_moves(params.moves)
+        algo = Algorithm.parse_moves(moves)
         cube.rotate(algo)
 
         display = cube.display()
 
-        return [TextContent(
-            type='text',
-            text=f'Applied moves: {algo}\n\nCube state:\n{display}',
-        )]
+        return f'Applied moves: {algo}\n\nCube state:\n{display}'
 
     except Exception as e:  # noqa: BLE001
-        return [TextContent(type='text', text=_handle_error(e))]
+        return _handle_error(e)
 
 
 @mcp.tool(
@@ -609,8 +319,13 @@ async def cubing_apply_moves(params: ApplyMovesInput) -> list[TextContent]:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
-async def cubing_get_state(params: GetStateInput) -> list[TextContent]:
+async def cubing_get_state(
+    display: bool = True,  # noqa: FBT001, FBT002
+    palette: str = 'default',
+    orientation: str = '',
+) -> str:
     """
     Get the current state of the global cube with optional visualization.
 
@@ -618,10 +333,13 @@ async def cubing_get_state(params: GetStateInput) -> list[TextContent]:
     This tool is read-only and does not modify the cube state.
 
     Args:
-        params (GetStateInput): Validated input containing:
-            - display (bool): Include visual representation (default: true)
-            - palette (str): Color palette for display (default: 'default')
-            - orientation (str): Cube orientation like 'UF' (default: '')
+        display (bool): Include visual representation (default: true)
+        palette (str): Color palette for display: 'default', 'pastel',
+            'dracula', 'colorblind', 'bold', 'mono', etc. (default: 'default')
+        orientation (str): Cube orientation as 2-character string. First
+            character is top face, second is front face. Examples: 'UF'
+            (white top, green front), 'RD' (red top, yellow front). Leave
+            empty for default. (default: '')
 
     Returns:
         list[TextContent]: Current state, solved status, and optional
@@ -645,17 +363,17 @@ async def cubing_get_state(params: GetStateInput) -> list[TextContent]:
         result += f'Solved: {cube.is_solved}\n'
         result += f'Orientation: {cube.orientation}\n'
 
-        if params.display:
-            display = cube.display(
-                palette=params.palette,
-                orientation=params.orientation,
+        if display:
+            vis = cube.display(
+                palette=palette,
+                orientation=orientation,
             )
-            result += f'\nVisualization:\n{display}'
+            result += f'\nVisualization:\n{vis}'
 
-        return [TextContent(type='text', text=result)]
+        return result
 
     except Exception as e:  # noqa: BLE001
-        return [TextContent(type='text', text=_handle_error(e))]
+        return _handle_error(e)
 
 
 @mcp.tool(
@@ -667,8 +385,9 @@ async def cubing_get_state(params: GetStateInput) -> list[TextContent]:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
-async def cubing_reset_cube() -> list[TextContent]:
+async def cubing_reset_cube() -> str:
     """
     Reset the global cube to solved state.
 
@@ -677,7 +396,7 @@ async def cubing_reset_cube() -> list[TextContent]:
     it multiple times has the same effect as calling it once.
 
     Returns:
-        list[TextContent]: Confirmation message with solved cube visualization
+        str: Confirmation message with solved cube visualization
 
     Examples:
         - Use when: "Reset the cube"
@@ -691,13 +410,10 @@ async def cubing_reset_cube() -> list[TextContent]:
     """
     try:
         cube = reset_cube()
-        return [TextContent(
-            type='text',
-            text=f'Cube reset to solved state.\n\n{cube.display()}',
-        )]
+        return f'Cube reset to solved state.\n\n{cube.display()}'
 
     except Exception as e:  # noqa: BLE001
-        return [TextContent(type='text', text=_handle_error(e))]
+        return _handle_error(e)
 
 
 @mcp.tool(
@@ -709,8 +425,14 @@ async def cubing_reset_cube() -> list[TextContent]:
         'idempotentHint': False,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
-async def cubing_scramble_cube(params: ScrambleCubeInput) -> list[TextContent]:
+async def cubing_scramble_cube(
+    cube_size: int = 3,
+    iterations: int = 0,
+    inner_layers: bool = False,  # noqa: FBT001, FBT002
+    right_handed: bool = True,  # noqa: FBT001, FBT002
+) -> str:
     """
     Apply a random scramble to the cube.
 
@@ -719,11 +441,17 @@ async def cubing_scramble_cube(params: ScrambleCubeInput) -> list[TextContent]:
     only generates the scramble (VCube only supports 3x3x3).
 
     Args:
-        params (ScrambleCubeInput): Validated input containing:
-            - cube_size (int): Cube size 2-7 (default: 3)
-            - iterations (int): Number of moves, 0 for auto (default: 0)
-            - inner_layers (bool): Include inner moves (default: false)
-            - right_handed (bool): Optimize for right-hand (default: true)
+        cube_size (int): Size of the cube (e.g., 3 for 3x3x3, 4 for 4x4x4,
+            5 for 5x5x5). Note: VCube only supports 3x3x3, so non-3 sizes
+            will generate the scramble without applying it to the global
+            cube. (default: 3)
+        iterations (int): Number of random moves (0 for automatic length
+            based on cube size: 20 for 3x3x3, 40 for 4x4x4, 60 for 5x5x5)
+            (default: 0)
+        inner_layers (bool): Whether to include inner layer moves for
+            larger cubes (e.g., 2R, 3Rw for 4x4x4+) (default: False)
+        right_handed (bool): Whether to optimize scramble for right-handed
+            solving (fewer awkward moves) (default: True)
 
     Returns:
         list[TextContent]: Generated scramble and cube state or just scramble
@@ -741,36 +469,29 @@ async def cubing_scramble_cube(params: ScrambleCubeInput) -> list[TextContent]:
     """
     try:
         scramble_alg = scramble(
-            params.cube_size,
-            params.iterations,
-            inner_layers=params.inner_layers,
-            right_handed=params.right_handed,
+            cube_size,
+            iterations,
+            inner_layers=inner_layers,
+            right_handed=right_handed,
         )
 
         # Only apply to global VCube if cube_size is 3
-        if params.cube_size == SUPPORTED_CUBE_SIZE:
+        if cube_size == SUPPORTED_CUBE_SIZE:
             cube = get_cube()
             cube.rotate(scramble_alg)
 
-            return [TextContent(
-                type='text',
-                text=f'Applied scramble: {scramble_alg}\n\n{cube.display()}',
-            )]
+            return f'Applied scramble: {scramble_alg}\n\n{cube.display()}'
 
         # For other cube sizes, just return the scramble
-        return [TextContent(
-            type='text',
-            text=(
-                f'Generated {params.cube_size}x{params.cube_size}x'
-                f'{params.cube_size} scramble:\n'
-                f'{scramble_alg}\n\n'
-                f'Note: VCube only supports 3x3x3 cubes, so the scramble was '
-                f'not applied to the global cube state.'
-            ),
-        )]
+        return (
+            f'Generated {cube_size}x{cube_size}x{cube_size} scramble:\n'
+            f'{scramble_alg}\n\n'
+            f'Note: VCube only supports 3x3x3 cubes, so the scramble was '
+            f'not applied to the global cube state.'
+        )
 
     except Exception as e:  # noqa: BLE001
-        return [TextContent(type='text', text=_handle_error(e))]
+        return _handle_error(e)
 
 
 @mcp.tool(
@@ -782,6 +503,7 @@ async def cubing_scramble_cube(params: ScrambleCubeInput) -> list[TextContent]:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
 async def cubing_is_solved() -> str:
     """
@@ -822,8 +544,9 @@ async def cubing_is_solved() -> str:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
-async def cubing_parse_algorithm(params: AlgorithmInput) -> str:
+async def cubing_parse_algorithm(algorithm: str) -> str:
     """
     Parse and validate an algorithm string into structured move information.
 
@@ -832,8 +555,8 @@ async def cubing_parse_algorithm(params: AlgorithmInput) -> str:
     the cube state.
 
     Args:
-        params (AlgorithmInput): Validated input containing:
-            - algorithm (str): Algorithm to parse
+        algorithm (str): Algorithm to process in standard notation.
+            Examples: "R U R' U'", "F R U R' U' F'", "[R, U]"
 
     Returns:
         str: JSON-formatted move breakdown with details for each move
@@ -851,7 +574,7 @@ async def cubing_parse_algorithm(params: AlgorithmInput) -> str:
 
     """
     try:
-        algo = Algorithm.parse_moves(params.algorithm)
+        algo = Algorithm.parse_moves(algorithm)
 
         moves_info = [
             {
@@ -886,8 +609,12 @@ async def cubing_parse_algorithm(params: AlgorithmInput) -> str:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
-async def cubing_analyze_algorithm(params: AnalyzeAlgorithmInput) -> str:
+async def cubing_analyze_algorithm(
+    algorithm: str,
+    response_format: str = 'json',
+) -> str:
     """
     Perform comprehensive analysis of a cube algorithm.
 
@@ -897,10 +624,10 @@ async def cubing_analyze_algorithm(params: AnalyzeAlgorithmInput) -> str:
     affected, patterns, complexity). Does not modify the cube state.
 
     Args:
-        params (AnalyzeAlgorithmInput): Validated input containing:
-            - algorithm (str): Algorithm to analyze
-            - response_format (ResponseFormat): 'json' or 'markdown'
-              (default: json)
+        algorithm (str): Algorithm to analyze in standard notation
+        response_format (str): Output format: 'json' for structured
+            machine-readable data (default), 'markdown' for human-readable
+            formatted text (default: 'json')
 
     Returns:
         str: Comprehensive analysis in requested format (JSON or Markdown)
@@ -919,7 +646,7 @@ async def cubing_analyze_algorithm(params: AnalyzeAlgorithmInput) -> str:
 
     """
     try:
-        algo = Algorithm.parse_moves(params.algorithm)
+        algo = Algorithm.parse_moves(algorithm)
         metrics = algo.metrics
         ergonomics = algo.ergonomics
         structure = algo.structure
@@ -999,7 +726,7 @@ async def cubing_analyze_algorithm(params: AnalyzeAlgorithmInput) -> str:
         }
 
         # Format based on requested format
-        if params.response_format == ResponseFormat.MARKDOWN:
+        if response_format.lower() == 'markdown':
             output = _format_analysis_markdown(result)
         else:
             output = json.dumps(result, indent=2)
@@ -1019,8 +746,9 @@ async def cubing_analyze_algorithm(params: AnalyzeAlgorithmInput) -> str:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
-async def cubing_mirror_algorithm(params: AlgorithmInput) -> str:
+async def cubing_mirror_algorithm(algorithm: str) -> str:
     """
     Get the mirror (inverse) of an algorithm.
 
@@ -1029,8 +757,7 @@ async def cubing_mirror_algorithm(params: AlgorithmInput) -> str:
     modify the cube state.
 
     Args:
-        params (AlgorithmInput): Validated input containing:
-            - algorithm (str): Algorithm to mirror
+        algorithm (str): Algorithm to mirror
 
     Returns:
         str: Original and mirrored algorithm strings
@@ -1046,7 +773,7 @@ async def cubing_mirror_algorithm(params: AlgorithmInput) -> str:
 
     """
     try:
-        algo = Algorithm.parse_moves(params.algorithm)
+        algo = Algorithm.parse_moves(algorithm)
         mirrored = mirror_moves(algo)
 
         return f'Original: {algo}\nMirrored: {mirrored}'
@@ -1064,8 +791,9 @@ async def cubing_mirror_algorithm(params: AlgorithmInput) -> str:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
-async def cubing_simplify_algorithm(params: AlgorithmInput) -> str:
+async def cubing_simplify_algorithm(algorithm: str) -> str:
     """
     Optimize and simplify an algorithm by removing redundant moves.
 
@@ -1075,8 +803,7 @@ async def cubing_simplify_algorithm(params: AlgorithmInput) -> str:
     the original. Does not modify the cube state.
 
     Args:
-        params (AlgorithmInput): Validated input containing:
-            - algorithm (str): Algorithm to simplify
+        algorithm (str): Algorithm to simplify
 
     Returns:
         str: Original and simplified algorithms with move reduction count
@@ -1092,7 +819,7 @@ async def cubing_simplify_algorithm(params: AlgorithmInput) -> str:
 
     """
     try:
-        algo = Algorithm.parse_moves(params.algorithm)
+        algo = Algorithm.parse_moves(algorithm)
         simplified = compress_moves(algo)
 
         original_length = len(algo)
@@ -1118,10 +845,12 @@ async def cubing_simplify_algorithm(params: AlgorithmInput) -> str:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
 async def cubing_visualize_algorithm(
-    params: VisualizeAlgorithmInput,
-) -> list[TextContent]:
+    algorithm: str,
+    orientation: str = '',
+) -> str:
     """
     Visualize the effect of an algorithm on a solved cube.
 
@@ -1130,9 +859,9 @@ async def cubing_visualize_algorithm(
     read-only operation that does not modify the global cube state.
 
     Args:
-        params (VisualizeAlgorithmInput): Validated input containing:
-            - algorithm (str): Algorithm to visualize
-            - orientation (str): Cube orientation for display (default: '')
+        algorithm (str): Algorithm to visualize
+        orientation (str): Cube orientation for display (2-char string like
+            "UF") (default: '')
 
     Returns:
         list[TextContent]: Algorithm info and visualization with affected pieces
@@ -1149,7 +878,7 @@ async def cubing_visualize_algorithm(
 
     """
     try:
-        algo = Algorithm.parse_moves(params.algorithm)
+        algo = Algorithm.parse_moves(algorithm)
 
         # Create a temporary solved cube and apply the algorithm
         temp_cube = VCube()
@@ -1159,7 +888,7 @@ async def cubing_visualize_algorithm(
         mask = algo.impacts.facelets_transformation_mask
 
         display = temp_cube.display(
-            orientation=params.orientation,
+            orientation=orientation,
             mask=mask,
         )
 
@@ -1171,10 +900,10 @@ async def cubing_visualize_algorithm(
         )
         result += f'Visualization (affected pieces highlighted):\n{display}'
 
-        return [TextContent(type='text', text=result)]
+        return result
 
     except Exception as e:  # noqa: BLE001
-        return [TextContent(type='text', text=_handle_error(e))]
+        return _handle_error(e)
 
 
 @mcp.tool(
@@ -1186,6 +915,7 @@ async def cubing_visualize_algorithm(
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
 async def cubing_get_history() -> str:
     """
@@ -1229,8 +959,9 @@ async def cubing_get_history() -> str:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
-async def cubing_set_state(params: SetStateInput) -> list[TextContent]:
+async def cubing_set_state(state: str) -> str:
     """
     Set the global cube to a specific state using a 54-character facelet string.
 
@@ -1239,8 +970,11 @@ async def cubing_set_state(params: SetStateInput) -> list[TextContent]:
     specific order.
 
     Args:
-        params (SetStateInput): Validated input containing:
-            - state (str): 54-character facelet string
+        state (str): 54-character facelet string representing the cube
+            state. Order: U face (9), R face (9), F face (9), D face (9),
+            L face (9), B face (9). Each face is top-left to bottom-right.
+            Example solved state:
+            "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB"
 
     Returns:
         list[TextContent]: Confirmation message with new cube visualization
@@ -1257,15 +991,12 @@ async def cubing_set_state(params: SetStateInput) -> list[TextContent]:
 
     """
     try:
-        cube = set_cube_state(params.state)
+        cube = set_cube_state(state)
 
-        return [TextContent(
-            type='text',
-            text=f'Cube state set successfully.\n\n{cube.display()}',
-        )]
+        return f'Cube state set successfully.\n\n{cube.display()}'
 
     except Exception as e:  # noqa: BLE001
-        return [TextContent(type='text', text=_handle_error(e))]
+        return _handle_error(e)
 
 
 @mcp.tool(
@@ -1277,6 +1008,7 @@ async def cubing_set_state(params: SetStateInput) -> list[TextContent]:
         'idempotentHint': True,
         'openWorldHint': False,
     },
+    structured_output=False,
 )
 async def cubing_solve_cube() -> str:
     """
