@@ -10,6 +10,11 @@ and algorithm analysis.
 import json
 
 from cubing_algs.algorithm import Algorithm
+from cubing_algs.cases import Case
+from cubing_algs.cases import CaseCollection
+from cubing_algs.cases import get_case
+from cubing_algs.cases import get_collection
+from cubing_algs.cases import list_collections
 from cubing_algs.scrambler import scramble
 from cubing_algs.transform.mirror import mirror_moves
 from cubing_algs.transform.size import compress_moves
@@ -239,6 +244,98 @@ def _format_analysis_markdown(result: dict) -> str:
     # Add cycles information
     if result.get('cycles'):
         lines.extend(['', '## Cycle Notation', f'```\n{result["cycles"]}\n```'])
+
+    return '\n'.join(lines)
+
+
+def _format_case_markdown(result: dict) -> str:
+    """
+    Format case details as human-readable markdown.
+
+    Args:
+        result: The case result dictionary.
+
+    Returns:
+        str: Markdown-formatted case details.
+
+    """
+    lines = [
+        f"# {result['name']}",
+        '',
+        f"**Code:** {result['code']}",
+        f"**Method:** {result['method']}",
+        f"**Step:** {result['step']}",
+        f"**Family:** {result['family']}",
+        '',
+    ]
+
+    # Description
+    if result['description']:
+        lines.extend(['## Description', result['description'], ''])
+
+    # Aliases
+    if result['aliases']:
+        lines.extend([
+            '## Aliases',
+            ', '.join(result['aliases']),
+            '',
+        ])
+
+    # Main algorithm
+    lines.extend([
+        '## Main Algorithm',
+        f'```\n{result["main_algorithm"]}\n```',
+        '',
+    ])
+
+    # Optimal metrics
+    lines.extend([
+        '## Optimal Metrics',
+        f'- **HTM:** {result["optimal_htm"]}',
+        f'- **STM:** {result["optimal_stm"]}',
+        f'- **Cycles:** {result["optimal_cycles"]}',
+        '',
+    ])
+
+    # Probability
+    lines.extend([
+        '## Probability',
+        f'- **Probability:** {result["probability"]:.4f} ({result["probability_label"]})',
+        '',
+    ])
+
+    # Alternative algorithms
+    if result['alternative_algorithms']:
+        lines.extend([
+            f'## Alternative Algorithms ({result["algorithm_count"]} total)',
+            '',
+        ])
+        for i, algo in enumerate(result['alternative_algorithms'][:10], 1):
+            lines.append(f'{i}. `{algo}`')
+        if result['algorithm_count'] > 10:
+            lines.append(
+                f'\n*...and {result["algorithm_count"] - 10} more algorithms*',
+            )
+        lines.append('')
+
+    # Metadata
+    lines.extend([
+        '## Metadata',
+        f'- **Symmetry:** {result["symmetry"]}',
+        f'- **Groups:** {", ".join(result["groups"])}',
+        f'- **Status:** {result["status"]}',
+        '',
+    ])
+
+    # Recognition (if present)
+    if result['recognition'] and result['recognition']['cases']:
+        lines.extend(['## Recognition', ''])
+        for rec_case in result['recognition']['cases']:
+            if rec_case.get('feature', {}).get('name'):
+                lines.append(f"**{rec_case['feature']['name']}**")
+            if rec_case.get('description'):
+                lines.append(rec_case['description'])
+            lines.append('')
 
     return '\n'.join(lines)
 
@@ -1045,6 +1142,215 @@ async def cubing_solve_cube() -> str:
         solution = Algorithm.parse_moves(solve(cube.state))
 
         return f'Solution: {solution}\nMoves: {len(solution)}'
+
+    except Exception as e:  # noqa: BLE001
+        return _handle_error(e)
+
+
+# ============================================================================
+# Case Collection Tools
+# ============================================================================
+
+
+@mcp.tool(
+    name='cubing_list_case_collections',
+    annotations={
+        'title': 'List Case Collections',
+        'readOnlyHint': True,
+        'destructiveHint': False,
+        'idempotentHint': True,
+        'openWorldHint': False,
+    },
+    structured_output=False,
+)
+async def cubing_list_case_collections() -> str:
+    """
+    List all available case collections.
+
+    Returns a list of all case collections available in the cubing-algs
+    library, such as OLL, PLL, F2L, and AF2L cases for CFOP method. Each
+    collection contains multiple cases with their algorithms.
+
+    Returns:
+        str: JSON-formatted list of collections with their names and sizes
+
+    Examples:
+        - Use when: "What case collections are available?"
+        - Use when: "Show me all available case sets"
+        - Use when: "List all OLL/PLL collections"
+        - Don't use when: You want details about a specific collection
+          (use cubing_get_case_collection)
+
+    Error Handling:
+        - Always succeeds (returns available collections)
+
+    """
+    try:
+        collections = list_collections()
+
+        # Get size for each collection
+        collection_info = []
+        for name in collections:
+            coll = get_collection(name)
+            collection_info.append({
+                'name': name,
+                'size': coll.size,
+            })
+
+        result = {
+            'total_collections': len(collections),
+            'collections': collection_info,
+        }
+
+        return json.dumps(result, indent=2)
+
+    except Exception as e:  # noqa: BLE001
+        return _handle_error(e)
+
+
+@mcp.tool(
+    name='cubing_get_case_collection',
+    annotations={
+        'title': 'Get Case Collection',
+        'readOnlyHint': True,
+        'destructiveHint': False,
+        'idempotentHint': True,
+        'openWorldHint': False,
+    },
+    structured_output=False,
+)
+async def cubing_get_case_collection(
+    collection: str,
+    include_cases: bool = True,  # noqa: FBT001, FBT002
+) -> str:
+    """
+    Get detailed information about a specific case collection.
+
+    Returns information about a case collection including its name, size,
+    and optionally a list of all cases in the collection. Supports both
+    full names (CFOP/OLL) and short names (OLL).
+
+    Args:
+        collection (str): Collection name with optional method prefix.
+            Examples: 'OLL', 'CFOP/OLL', 'PLL', 'F2L', 'AF2L'. Case-insensitive.
+        include_cases (bool): Whether to include the list of all case names
+            in the collection (default: True)
+
+    Returns:
+        str: JSON-formatted collection details with optional case list
+
+    Examples:
+        - Use when: "Show me all OLL cases"
+        - Use when: "How many PLL cases are there?"
+        - Use when: "List all cases in F2L collection"
+        - Don't use when: You want a specific case
+          (use cubing_get_case)
+
+    Error Handling:
+        - Returns error if collection name is invalid
+        - Provides list of available collections in error message
+
+    """
+    try:
+        coll = get_collection(collection)
+
+        result = {
+            'name': coll.name,
+            'method': coll.method,
+            'full_name': f'{coll.method}/{coll.name}',
+            'size': coll.size,
+        }
+
+        if include_cases:
+            result['cases'] = sorted(coll.cases.keys())
+
+        return json.dumps(result, indent=2)
+
+    except Exception as e:  # noqa: BLE001
+        return _handle_error(e)
+
+
+@mcp.tool(
+    name='cubing_get_case',
+    annotations={
+        'title': 'Get Case Details',
+        'readOnlyHint': True,
+        'destructiveHint': False,
+        'idempotentHint': True,
+        'openWorldHint': False,
+    },
+    structured_output=False,
+)
+async def cubing_get_case(
+    collection: str,
+    case_name: str,
+    response_format: str = 'json',
+) -> str:
+    """
+    Get detailed information about a specific cubing case.
+
+    Returns comprehensive information about a case including its algorithms,
+    recognition patterns, probability, optimal metrics, and metadata. Supports
+    lookup by case name, code, or alias (e.g., 'Sune', 'T-Perm', 'X-PLL').
+
+    Args:
+        collection (str): Collection name (e.g., 'OLL', 'PLL', 'F2L').
+            Supports both short names (OLL) and full names (CFOP/OLL).
+        case_name (str): Case identifier - can be name ('OLL 27'),
+            code ('27'), or alias ('Sune', 'T-Perm'). Case-insensitive.
+        response_format (str): Output format: 'json' for structured data
+            (default), 'markdown' for human-readable formatted text
+            (default: 'json')
+
+    Returns:
+        str: Comprehensive case details in requested format
+
+    Examples:
+        - Use when: "Show me OLL 27"
+        - Use when: "What's the Sune algorithm?"
+        - Use when: "Get details for T-Perm"
+        - Use when: "Show me PLL Aa with all algorithms"
+        - Don't use when: You want to list all cases
+          (use cubing_get_case_collection)
+
+    Error Handling:
+        - Returns error if collection or case name is invalid
+        - Suggests available collections/cases in error message
+
+    """
+    try:
+        case = get_case(collection, case_name)
+
+        result = {
+            'name': case.name,
+            'code': case.code,
+            'method': case.method,
+            'step': case.step,
+            'description': case.description,
+            'aliases': case.aliases,
+            'family': case.family,
+            'groups': case.groups,
+            'status': case.status,
+            'symmetry': case.symmetry,
+            'arrows': case.arrows,
+            'probability': case.probability,
+            'probability_label': case.probability_label,
+            'optimal_cycles': case.optimal_cycles,
+            'optimal_htm': case.optimal_htm,
+            'optimal_stm': case.optimal_stm,
+            'main_algorithm': str(case.main_algorithm),
+            'alternative_algorithms': [str(algo) for algo in case.algorithms],
+            'algorithm_count': len(case.algorithms),
+            'recognition': case.recognition,
+        }
+
+        # Format based on requested format
+        if response_format.lower() == 'markdown':
+            output = _format_case_markdown(result)
+        else:
+            output = json.dumps(result, indent=2)
+
+        return _check_character_limit(output)
 
     except Exception as e:  # noqa: BLE001
         return _handle_error(e)

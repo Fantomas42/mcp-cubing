@@ -115,6 +115,38 @@ Set the cube to a specific state using a 54-character facelet string. (Destructi
 ### `cubing_solve_cube`
 Find a solution for the current cube state using the Kociemba algorithm.
 
+### `cubing_list_case_collections`
+List all available case collections (OLL, PLL, F2L, AF2L).
+
+**Returns:**
+- Total number of collections
+- Name and size of each collection
+
+### `cubing_get_case_collection`
+Get detailed information about a specific case collection.
+
+**Parameters:**
+- `collection` (string): Collection name ('OLL', 'PLL', 'F2L', 'AF2L', or 'CFOP/OLL', etc.)
+- `include_cases` (boolean, optional): Include list of all case names (default: true)
+
+**Returns:**
+- Collection name, method, size
+- List of all cases in the collection (if requested)
+
+### `cubing_get_case`
+Get comprehensive details about a specific cubing case.
+
+**Parameters:**
+- `collection` (string): Collection name ('OLL', 'PLL', etc.)
+- `case_name` (string): Case identifier (name, code, or alias like 'Sune', 'T-Perm', '27')
+- `response_format` (string, optional): 'json' or 'markdown' (default: 'json')
+
+**Returns:**
+- Case name, code, description, aliases
+- Main algorithm and alternative algorithms
+- Probability and optimal metrics (HTM, STM, cycles)
+- Recognition patterns and metadata (family, groups, symmetry)
+
 ## Usage with Claude Code
 
 Add this to your .mcp.json file
